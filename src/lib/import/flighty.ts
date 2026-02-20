@@ -253,42 +253,48 @@ export const processFlightyFile = async (
 
     flights.push({
       date,
-      from: from || null,
-      to: to || null,
-      departure: departure.toISOString(),
-      arrival: arrival.toISOString(),
-      departureScheduled: departureScheduled
-        ? departureScheduled.toISOString()
-        : null,
-      arrivalScheduled: arrivalScheduled
-        ? arrivalScheduled.toISOString()
-        : null,
-      takeoffScheduled: takeoffScheduled
-        ? takeoffScheduled.toISOString()
-        : null,
-      takeoffActual: takeoffActual ? takeoffActual.toISOString() : null,
-      landingScheduled: landingScheduled
-        ? landingScheduled.toISOString()
-        : null,
-      landingActual: landingActual ? landingActual.toISOString() : null,
-      departureTerminal: row.dep_terminal,
-      departureGate: row.dep_gate,
-      arrivalTerminal: row.arr_terminal,
-      arrivalGate: row.arr_gate,
-      duration,
-      flightNumber,
-      note: buildNotes(row),
-      airline,
-      aircraft,
-      aircraftReg: row.tail_number ? row.tail_number.substring(0, 10) : null,
       flightReason: mapFlightReason(row.flight_reason),
-      seats: [
+      note: buildNotes(row),
+      legs: [
         {
-          userId,
-          seat: mapSeatType(row.seat_type),
-          seatClass: mapSeatClass(row.cabin_class),
-          seatNumber: row.seat ? row.seat.substring(0, 5) : null,
-          guestName: null,
+          from: from || null,
+          to: to || null,
+          departure: departure.toISOString(),
+          arrival: arrival.toISOString(),
+          departureScheduled: departureScheduled
+            ? departureScheduled.toISOString()
+            : null,
+          arrivalScheduled: arrivalScheduled
+            ? arrivalScheduled.toISOString()
+            : null,
+          takeoffScheduled: takeoffScheduled
+            ? takeoffScheduled.toISOString()
+            : null,
+          takeoffActual: takeoffActual ? takeoffActual.toISOString() : null,
+          landingScheduled: landingScheduled
+            ? landingScheduled.toISOString()
+            : null,
+          landingActual: landingActual ? landingActual.toISOString() : null,
+          departureTerminal: row.dep_terminal,
+          departureGate: row.dep_gate,
+          arrivalTerminal: row.arr_terminal,
+          arrivalGate: row.arr_gate,
+          duration,
+          flightNumber,
+          airline,
+          aircraft,
+          aircraftReg: row.tail_number
+            ? row.tail_number.substring(0, 10)
+            : null,
+          seats: [
+            {
+              userId,
+              seat: mapSeatType(row.seat_type),
+              seatClass: mapSeatClass(row.cabin_class),
+              seatNumber: row.seat ? row.seat.substring(0, 5) : null,
+              guestName: null,
+            },
+          ],
         },
       ],
     });

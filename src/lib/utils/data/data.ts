@@ -2,12 +2,24 @@ import { TZDate } from '@date-fns/tz';
 import { isAfter } from 'date-fns';
 
 import { page } from '$app/state';
-import type { Airport, Flight } from '$lib/db/types';
+import type { Airport, Flight, Leg } from '$lib/db/types';
 import { distanceBetween, toTitleCase } from '$lib/utils';
 import { nowIn, parseLocalISO, parseLocalizeISO } from '$lib/utils/datetime';
 
-type ExcludedType<T, U> = {
-  [P in keyof T as P extends keyof U ? never : P]: T[P];
+export type LegData = {
+  from: Airport | null;
+  to: Airport | null;
+  departure: TZDate | null;
+  arrival: TZDate | null;
+  distance: number | null;
+  duration: number | null;
+  seats: Leg['seats'];
+  airline: Leg['airline'];
+  aircraft: Leg['aircraft'];
+  aircraftReg: string | null;
+  flightNumber: string | null;
+  legOrder: number;
+  raw: Leg;
 };
 
 type FlightOverrides = {
@@ -16,46 +28,99 @@ type FlightOverrides = {
   arrival: TZDate | null;
   distance: number | null;
   raw: Flight;
+  legs: LegData[];
+  // First-leg convenience accessors
+  from: Airport | null;
+  to: Airport | null;
+  seats: Leg['seats'];
+  airline: Leg['airline'];
+  aircraft: Leg['aircraft'];
+  aircraftReg: string | null;
+  flightNumber: string | null;
+  duration: number | null;
 };
+
+type ExcludedType<T, U> = {
+  [P in keyof T as P extends keyof U ? never : P]: T[P];
+};
+
 export type FlightData = ExcludedType<Flight, FlightOverrides> &
   FlightOverrides;
+
+const processLeg = (leg: Leg): LegData => {
+  const departure =
+    leg.departure && leg.from
+      ? parseLocalizeISO(leg.departure, leg.from.tz)
+      : leg.departure
+        ? parseLocalizeISO(leg.departure, 'UTC')
+        : null;
+
+  const arrival =
+    leg.arrival && leg.to
+      ? parseLocalizeISO(leg.arrival, leg.to.tz)
+      : leg.arrival
+        ? parseLocalizeISO(leg.arrival, 'UTC')
+        : null;
+
+  const distance =
+    leg.from && leg.to
+      ? distanceBetween(
+          [leg.from.lon, leg.from.lat],
+          [leg.to.lon, leg.to.lat],
+        ) / 1000
+      : null;
+
+  return {
+    from: leg.from,
+    to: leg.to,
+    departure,
+    arrival,
+    distance,
+    duration: leg.duration,
+    seats: leg.seats,
+    airline: leg.airline,
+    aircraft: leg.aircraft,
+    aircraftReg: leg.aircraftReg,
+    flightNumber: leg.flightNumber,
+    legOrder: leg.legOrder,
+    raw: leg,
+  };
+};
 
 export const prepareFlightData = (data: Flight[]): FlightData[] => {
   if (!data) return [];
 
   return data
     .map((flight) => {
-      const departure =
-        flight.departure && flight.from
-          ? parseLocalizeISO(flight.departure, flight.from.tz)
-          : flight.departure
-            ? parseLocalizeISO(flight.departure, 'UTC')
-            : null;
+      const legs = flight.legs.map(processLeg);
+      const firstLeg = legs[0];
+
+      const departure = firstLeg?.departure ?? null;
+      const firstRawLeg = flight.legs[0];
 
       return {
         ...flight,
         date:
           departure ??
-          (flight.date && flight.from
-            ? parseLocalISO(`${flight.date}T00:00`, flight.from.tz)
+          (flight.date && firstRawLeg?.from
+            ? parseLocalISO(`${flight.date}T00:00`, firstRawLeg.from.tz)
             : flight.date
               ? parseLocalISO(`${flight.date}T00:00`, 'UTC')
               : null),
         departure,
-        arrival:
-          flight.arrival && flight.to
-            ? parseLocalizeISO(flight.arrival, flight.to.tz)
-            : flight.arrival
-              ? parseLocalizeISO(flight.arrival, 'UTC')
-              : null,
-        distance:
-          flight.from && flight.to
-            ? distanceBetween(
-                [flight.from.lon, flight.from.lat],
-                [flight.to.lon, flight.to.lat],
-              ) / 1000
-            : null,
+        arrival: legs[legs.length - 1]?.arrival ?? null,
+        distance: firstLeg?.distance ?? null,
         raw: flight,
+        legs,
+        // First-leg convenience accessors
+        from: firstLeg?.from ?? null,
+        to: legs[legs.length - 1]?.to ?? null,
+        seats: firstLeg?.seats ?? [],
+        airline: firstLeg?.airline ?? null,
+        aircraft: firstLeg?.aircraft ?? null,
+        aircraftReg: firstLeg?.aircraftReg ?? null,
+        flightNumber: firstLeg?.flightNumber ?? null,
+        duration: legs.reduce((sum, l) => sum + (l.duration ?? 0), 0) || null,
       };
     })
     .filter((f) => f !== null);
@@ -76,35 +141,38 @@ export const prepareFlightArcData = (data: FlightData[]) => {
   } = {};
 
   data.forEach((flight) => {
-    if (!flight.from || !flight.to) return;
+    // Create arcs for each leg
+    for (const leg of flight.legs) {
+      if (!leg.from || !leg.to) continue;
 
-    const key = [flight.from.name, flight.to.name]
-      .sort((a, b) => a.localeCompare(b))
-      .join('-');
-    if (!routeMap[key]) {
-      routeMap[key] = {
-        distance: flight.distance!,
-        from: flight.from,
-        to: flight.to,
-        flights: [],
-        airlines: [],
-        exclusivelyFuture: false,
-      };
-    }
+      const key = [leg.from.name, leg.to.name]
+        .sort((a, b) => a.localeCompare(b))
+        .join('-');
+      if (!routeMap[key]) {
+        routeMap[key] = {
+          distance: leg.distance!,
+          from: leg.from,
+          to: leg.to,
+          flights: [],
+          airlines: [],
+          exclusivelyFuture: false,
+        };
+      }
 
-    routeMap[key].flights.push(formatSimpleFlight(flight));
+      routeMap[key].flights.push(formatSimpleFlight(flight));
 
-    if (
-      routeMap[key].flights.every(
-        (f) => f.date && isAfter(f.date, nowIn('UTC')),
-      )
-    ) {
-      routeMap[key].exclusivelyFuture = true;
-    }
+      if (
+        routeMap[key].flights.every(
+          (f) => f.date && isAfter(f.date, nowIn('UTC')),
+        )
+      ) {
+        routeMap[key].exclusivelyFuture = true;
+      }
 
-    if (flight.airline) {
-      if (!routeMap[key].airlines.includes(flight.airline.id)) {
-        routeMap[key].airlines.push(flight.airline.id);
+      if (leg.airline) {
+        if (!routeMap[key].airlines.includes(leg.airline.id)) {
+          routeMap[key].airlines.push(leg.airline.id);
+        }
       }
     }
   });
@@ -120,10 +188,14 @@ export const prepareVisitedAirports = (data: FlightData[]) => {
     flights: ReturnType<typeof formatSimpleFlight>[];
     frequency: number;
   })[] = [];
-  const formatAirport = (flight: FlightData, direction: 'from' | 'to') => {
-    if (!flight[direction]) return;
+  const formatAirport = (
+    flight: FlightData,
+    leg: LegData,
+    direction: 'from' | 'to',
+  ) => {
+    if (!leg[direction]) return;
 
-    const airport = flight[direction];
+    const airport = leg[direction];
     let visit = visited.find((v) => v.name === airport.name);
     if (!visit) {
       visit = {
@@ -143,16 +215,18 @@ export const prepareVisitedAirports = (data: FlightData[]) => {
       visit.arrivals++;
     }
 
-    if (flight.airline && !visit.airlines.includes(flight.airline.id)) {
-      visit.airlines.push(flight.airline.id);
+    if (leg.airline && !visit.airlines.includes(leg.airline.id)) {
+      visit.airlines.push(leg.airline.id);
     }
 
     visit.flights.push(formatSimpleFlight(flight));
   };
 
   data.forEach((flight) => {
-    formatAirport(flight, 'from');
-    formatAirport(flight, 'to');
+    for (const leg of flight.legs) {
+      formatAirport(flight, leg, 'from');
+      formatAirport(flight, leg, 'to');
+    }
   });
 
   const MIN_FREQUENCY = 1;
@@ -191,23 +265,27 @@ export const formatSeat = (f: FlightData) => {
   const userId = page.data.user?.id;
   if (!userId) return null;
 
-  const s = f.seats.find((seat) => seat.userId === userId);
-  if (!s) return null;
+  // Look through all legs for the user's seat
+  for (const leg of f.legs) {
+    const s = leg.seats.find((seat) => seat.userId === userId);
+    if (!s) continue;
 
-  if (s.seat && s.seatNumber && s.seatClass) {
-    return `${t(s.seatClass)} (${s.seat} ${s.seatNumber})`;
+    if (s.seat && s.seatNumber && s.seatClass) {
+      return `${t(s.seatClass)} (${s.seat} ${s.seatNumber})`;
+    }
+    if (s.seat && s.seatNumber) {
+      return `${s.seat} ${s.seatNumber}`;
+    }
+    if (s.seat && s.seatClass) {
+      return `${t(s.seatClass)} (${s.seat})`;
+    }
+    if (s.seatClass) {
+      return t(s.seatClass);
+    }
+    if (s.seat) {
+      return t(s.seat);
+    }
   }
-  if (s.seat && s.seatNumber) {
-    return `${s.seat} ${s.seatNumber}`;
-  }
-  if (s.seat && s.seatClass) {
-    return `${t(s.seatClass)} (${s.seat})`;
-  }
-  if (s.seatClass) {
-    return t(s.seatClass);
-  }
-  if (s.seat) {
-    return t(s.seat);
-  }
+
   return null;
 };

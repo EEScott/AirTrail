@@ -30,7 +30,11 @@ export const POST: RequestHandler = async ({ request }) => {
     return apiError('Flight not found', 400);
   }
 
-  if (!flight.seats.some((seat) => seat.userId === user.id)) {
+  if (
+    !flight.legs.some((leg) =>
+      leg.seats.some((seat) => seat.userId === user.id),
+    )
+  ) {
     return apiError('You do not have a seat on this flight', 403);
   }
 

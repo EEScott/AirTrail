@@ -14,28 +14,38 @@ import { generateRandomString } from '$lib/server/utils/random';
 import type { ErrorActionResult } from '$lib/utils/forms';
 import { baseShareSchema, type shareSchema } from '$lib/zod/share';
 
-// Use complete objects instead of individual field properties
-interface SanitizedFlight {
+interface SanitizedLeg {
   id: number;
-  from: Airport;
-  to: Airport;
+  legOrder: number;
+  from: Airport | null;
+  to: Airport | null;
   duration: number | null;
-  flightReason: string | null;
   aircraftReg: string | null;
   seats: Seat[];
   // Conditionally included fields based on privacy settings
-  flightNumber?: string | null;
-  airline?: Airline | null;
-  aircraft?: Aircraft | null;
-  departure?: string | null;
-  arrival?: string | null;
-  departureScheduled?: string | null;
-  arrivalScheduled?: string | null;
-  takeoffScheduled?: string | null;
-  takeoffActual?: string | null;
-  landingScheduled?: string | null;
-  landingActual?: string | null;
-  date?: string | null;
+  flightNumber: string | null;
+  airline: Airline | null;
+  aircraft: Aircraft | null;
+  departure: string | null;
+  arrival: string | null;
+  departureScheduled: string | null;
+  arrivalScheduled: string | null;
+  takeoffScheduled: string | null;
+  takeoffActual: string | null;
+  landingScheduled: string | null;
+  landingActual: string | null;
+  departureTerminal: string | null;
+  departureGate: string | null;
+  arrivalTerminal: string | null;
+  arrivalGate: string | null;
+}
+
+interface SanitizedFlight {
+  id: number;
+  flightReason: string | null;
+  note: string | null;
+  legs: SanitizedLeg[];
+  date: string | null;
 }
 
 // Zod schemas for input validation
@@ -239,63 +249,58 @@ async function getFilteredFlightsForShare(share: PublicShare) {
 
 /**
  * Sanitize flight data based on privacy settings
- * Sends complete objects to frontend instead of individual field properties
+ * Returns flights with legs array matching the Flight type structure
  */
 function sanitizeFlightData(
   flights: Awaited<ReturnType<typeof getFilteredFlightsForShare>>,
   share: PublicShare,
 ): SanitizedFlight[] {
   return flights.map((flight) => {
-    // Create sanitized seats array (only include user's seats, remove sensitive data)
-    const userSeats = flight.seats
-      .filter((seat) => seat.userId === share.userId)
-      .map((seat) => ({
-        ...seat,
-        seat: share.showSeat ? seat.seat : null,
-        seatClass: share.showSeat ? seat.seatClass : null,
-        seatNumber: share.showSeat ? seat.seatNumber : null,
-        userId: seat.userId,
-      }));
+    const sanitizedLegs: SanitizedLeg[] = flight.legs.map((leg) => {
+      // Create sanitized seats array (only include user's seats, remove sensitive data)
+      const userSeats = leg.seats
+        .filter((seat) => seat.userId === share.userId)
+        .map((seat) => ({
+          ...seat,
+          seat: share.showSeat ? seat.seat : null,
+          seatClass: share.showSeat ? seat.seatClass : null,
+          seatNumber: share.showSeat ? seat.seatNumber : null,
+          userId: seat.userId,
+        }));
 
-    const sanitized: SanitizedFlight = {
+      return {
+        id: leg.id,
+        legOrder: leg.legOrder,
+        from: leg.from,
+        to: leg.to,
+        duration: leg.duration,
+        aircraftReg: leg.aircraftReg,
+        seats: userSeats,
+        flightNumber: share.showFlightNumbers ? leg.flightNumber : null,
+        airline: share.showAirlines ? leg.airline : null,
+        aircraft: share.showAircraft ? leg.aircraft : null,
+        departure: share.showTimes ? leg.departure : null,
+        arrival: share.showTimes ? leg.arrival : null,
+        departureScheduled: share.showTimes ? leg.departureScheduled : null,
+        arrivalScheduled: share.showTimes ? leg.arrivalScheduled : null,
+        takeoffScheduled: share.showTimes ? leg.takeoffScheduled : null,
+        takeoffActual: share.showTimes ? leg.takeoffActual : null,
+        landingScheduled: share.showTimes ? leg.landingScheduled : null,
+        landingActual: share.showTimes ? leg.landingActual : null,
+        departureTerminal: leg.departureTerminal,
+        departureGate: leg.departureGate,
+        arrivalTerminal: leg.arrivalTerminal,
+        arrivalGate: leg.arrivalGate,
+      };
+    });
+
+    return {
       id: flight.id,
-      from: flight.from!, // Always include complete from airport
-      to: flight.to!, // Always include complete to airport
-      duration: flight.duration,
       flightReason: flight.flightReason,
-      aircraftReg: flight.aircraftReg,
-      seats: userSeats,
+      note: flight.note,
+      date: share.showDates ? flight.date : null,
+      legs: sanitizedLegs,
     };
-
-    // Apply privacy settings for conditional fields
-    if (share.showFlightNumbers) {
-      sanitized.flightNumber = flight.flightNumber;
-    }
-
-    if (share.showAirlines && flight.airline) {
-      sanitized.airline = flight.airline;
-    }
-
-    if (share.showAircraft && flight.aircraft) {
-      sanitized.aircraft = flight.aircraft;
-    }
-
-    if (share.showTimes) {
-      sanitized.departure = flight.departure;
-      sanitized.arrival = flight.arrival;
-      sanitized.departureScheduled = flight.departureScheduled;
-      sanitized.arrivalScheduled = flight.arrivalScheduled;
-      sanitized.takeoffScheduled = flight.takeoffScheduled;
-      sanitized.takeoffActual = flight.takeoffActual;
-      sanitized.landingScheduled = flight.landingScheduled;
-      sanitized.landingActual = flight.landingActual;
-    }
-
-    if (share.showDates) {
-      sanitized.date = flight.date;
-    }
-
-    return sanitized;
   });
 }
 

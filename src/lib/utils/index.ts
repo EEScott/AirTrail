@@ -3,6 +3,7 @@ export { parseCsv } from './csv';
 export { readFile } from './file';
 export {
   type FlightData,
+  type LegData,
   prepareFlightData,
   prepareFlightArcData,
   prepareVisitedAirports,

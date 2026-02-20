@@ -57,6 +57,16 @@ export type flight = {
     id: Generated<number>;
     date: string;
     /**
+     * @kyselyType('leisure' | 'business' | 'crew' | 'other')
+     */
+    flightReason: 'leisure' | 'business' | 'crew' | 'other' | null;
+    note: string | null;
+};
+export type leg = {
+    id: Generated<number>;
+    flightId: number;
+    legOrder: number;
+    /**
      * YYYY-MM-DDTHH:mm:ss.sssZ (ISO-8601)
      */
     departure: string | null;
@@ -94,12 +104,7 @@ export type flight = {
     arrivalTerminal: string | null;
     arrivalGate: string | null;
     flightNumber: string | null;
-    /**
-     * @kyselyType('leisure' | 'business' | 'crew' | 'other')
-     */
-    flightReason: 'leisure' | 'business' | 'crew' | 'other' | null;
     aircraftReg: string | null;
-    note: string | null;
     fromId: number | null;
     toId: number | null;
     aircraftId: number | null;
@@ -125,7 +130,7 @@ export type public_share = {
 };
 export type seat = {
     id: Generated<number>;
-    flightId: number;
+    legId: number;
     userId: string | null;
     guestName: string | null;
     /**
@@ -181,6 +186,7 @@ export type DB = {
     apiKey: api_key;
     appConfig: app_config;
     flight: flight;
+    leg: leg;
     publicShare: public_share;
     seat: seat;
     session: session;

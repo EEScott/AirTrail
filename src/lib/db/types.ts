@@ -4,6 +4,7 @@ import type {
   airport,
   api_key,
   flight,
+  leg,
   public_share,
   seat,
   user,
@@ -19,9 +20,10 @@ export type Airline = Selectable<airline>;
 export type Airport = Selectable<airport>;
 export type CreateAirport = Insertable<airport>;
 export type Seat = Selectable<seat>;
-export type Flight = Omit<
-  Selectable<flight>,
-  'fromId' | 'toId' | 'aircraftId' | 'airlineId'
+
+export type Leg = Omit<
+  Selectable<leg>,
+  'fromId' | 'toId' | 'aircraftId' | 'airlineId' | 'flightId'
 > & {
   from: Airport | null;
   to: Airport | null;
@@ -29,14 +31,23 @@ export type Flight = Omit<
   aircraft: Aircraft | null;
   airline: Airline | null;
 };
+
+export type Flight = Selectable<flight> & {
+  legs: Leg[];
+};
+
 type CreateFlightAirport = Partial<Airport>;
-export type CreateFlight = Omit<Flight, 'id' | 'seats'> & {
+
+export type CreateLeg = Omit<Leg, 'id' | 'legOrder' | 'seats'> & {
   from: CreateFlightAirport | null;
   to: CreateFlightAirport | null;
-  aircraft: Aircraft | null;
-  airline: Airline | null;
-  seats: Omit<Seat, 'flightId' | 'id'>[];
+  seats: Omit<Seat, 'legId' | 'id'>[];
 };
+
+export type CreateFlight = Omit<Flight, 'id' | 'legs'> & {
+  legs: CreateLeg[];
+};
+
 export type PublicShare = Selectable<public_share>;
 export type VisitedCountry = Selectable<visited_country>;
 

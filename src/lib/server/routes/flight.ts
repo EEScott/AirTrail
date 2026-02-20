@@ -51,10 +51,12 @@ export const flightRouter = router({
   delete: authedProcedure
     .input(z.number())
     .mutation(async ({ ctx: { user }, input }) => {
+      // Check seat ownership via leg -> seat join
       const seats = await db
-        .selectFrom('seat')
-        .selectAll()
-        .where('flightId', '=', input)
+        .selectFrom('leg')
+        .innerJoin('seat', 'seat.legId', 'leg.id')
+        .selectAll('seat')
+        .where('leg.flightId', '=', input)
         .execute();
 
       if (!seats.some((seat) => seat.userId === user.id)) {
@@ -71,11 +73,12 @@ export const flightRouter = router({
     .input(z.array(z.number()))
     .mutation(async ({ ctx: { user }, input }) => {
       const result = await db
-        .selectFrom('seat')
-        .select('flightId')
+        .selectFrom('leg')
+        .innerJoin('seat', 'seat.legId', 'leg.id')
+        .select('leg.flightId')
         .distinct()
-        .where('userId', '=', user.id)
-        .where('flightId', 'in', input)
+        .where('seat.userId', '=', user.id)
+        .where('leg.flightId', 'in', input)
         .execute();
       const flightIds = result.map((r) => r.flightId);
 
@@ -88,7 +91,8 @@ export const flightRouter = router({
   deleteAll: authedProcedure.mutation(async ({ ctx: { user } }) => {
     const flightIds = await db
       .selectFrom('flight')
-      .innerJoin('seat', 'seat.flightId', 'flight.id')
+      .innerJoin('leg', 'leg.flightId', 'flight.id')
+      .innerJoin('seat', 'seat.legId', 'leg.id')
       .select('flight.id')
       .groupBy('flight.id')
       .having((eb) =>
@@ -154,15 +158,19 @@ export const flightRouter = router({
       .execute();
     const res = await listFlights(user.id);
     const flights = res.map((flight) => ({
-      ...omit(flight, ['id', 'fromId', 'toId', 'airlineId', 'aircraftId']),
-      from: flight.from ? omit(flight.from, ['id']) : null,
-      to: flight.to ? omit(flight.to, ['id']) : null,
-      airline: flight.airline ? omit(flight.airline, ['id']) : null,
-      aircraft: flight.aircraft ? omit(flight.aircraft, ['id']) : null,
-      seats: flight.seats.map((seat) => omit(seat, ['id', 'flightId'])),
+      ...omit(flight, ['id']),
+      legs: flight.legs.map((leg) => ({
+        ...omit(leg, ['id', 'legOrder', 'fromId', 'toId', 'airlineId', 'aircraftId']),
+        from: leg.from ? omit(leg.from, ['id']) : null,
+        to: leg.to ? omit(leg.to, ['id']) : null,
+        airline: leg.airline ? omit(leg.airline, ['id']) : null,
+        aircraft: leg.aircraft ? omit(leg.aircraft, ['id']) : null,
+        seats: leg.seats.map((seat) => omit(seat, ['id', 'legId'])),
+      })),
     }));
     return JSON.stringify(
       {
+        version: 2,
         users,
         flights,
       },
@@ -172,21 +180,31 @@ export const flightRouter = router({
   }),
   exportCsv: authedProcedure.query(async ({ ctx: { user } }) => {
     const res = await listFlights(user.id);
-    const flights = res.map(({ id: _, seats, ...flight }) => {
-      const seat = seats.find((seat) => seat.userId === user.id);
+    const rows = res.flatMap((flight) =>
+      flight.legs.map((leg, legIndex) => {
+        const seat = leg.seats.find((seat) => seat.userId === user.id);
+        return {
+          flightId: flight.id,
+          legOrder: legIndex,
+          date: flight.date,
+          flightReason: flight.flightReason,
+          note: flight.note,
+          from: leg.from?.name,
+          to: leg.to?.name,
+          departure: leg.departure,
+          arrival: leg.arrival,
+          duration: leg.duration,
+          flightNumber: leg.flightNumber,
+          aircraftReg: leg.aircraftReg,
+          airline: leg.airline?.name,
+          aircraft: leg.aircraft?.name,
+          seat: seat?.seat,
+          seatNumber: seat?.seatNumber,
+          seatClass: seat?.seatClass,
+        };
+      }),
+    );
 
-      return {
-        ...flight,
-        from: flight.from?.name,
-        to: flight.to?.name,
-        airline: flight.airline?.name,
-        aircraft: flight.aircraft?.name,
-        seat: seat?.seat,
-        seatNumber: seat?.seatNumber,
-        seatClass: seat?.seatClass,
-      };
-    });
-
-    return generateCsv(flights);
+    return generateCsv(rows);
   }),
 });

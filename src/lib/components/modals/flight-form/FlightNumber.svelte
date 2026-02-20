@@ -22,10 +22,15 @@
 
   let {
     form,
+    legIndex = 0,
   }: {
     form: SuperForm<z.infer<typeof flightSchema>>;
+    legIndex?: number;
   } = $props();
   const { form: formData } = form;
+
+  const leg = $derived($formData.legs[legIndex]!);
+  const fieldName = $derived(`legs[${legIndex}].flightNumber` as const);
 
   // Result type after parsing - uses TZDate for timezone-aware dates
   type LookupResult = Awaited<ReturnType<typeof api.flight.lookup.query>>[0] & {
@@ -58,7 +63,7 @@
     if (!result) return;
 
     if (
-      ($formData.from || $formData.to) &&
+      (leg.from || leg.to) &&
       !confirm(
         'Are you sure you want to overwrite the current flight information?',
       )
@@ -66,24 +71,24 @@
       return;
     }
 
-    $formData.from = result.from;
-    $formData.to = result.to;
-    $formData.airline = result.airline ?? null;
-    $formData.aircraft = result.aircraft ?? null;
-    $formData.aircraftReg = result.aircraftReg ?? null;
+    $formData.legs[legIndex]!.from = result.from;
+    $formData.legs[legIndex]!.to = result.to;
+    $formData.legs[legIndex]!.airline = result.airline ?? null;
+    $formData.legs[legIndex]!.aircraft = result.aircraft ?? null;
+    $formData.legs[legIndex]!.aircraftReg = result.aircraftReg ?? null;
 
     if (result.arrival && result.departure && !isFutureFlight(result)) {
-      $formData.departure = format(
+      $formData.legs[legIndex]!.departure = format(
         result.departure,
         "yyyy-MM-dd'T'00:00:00.000'Z'",
       );
-      $formData.departureTime = formatAsTime(result.departure, displayLocale);
+      $formData.legs[legIndex]!.departureTime = formatAsTime(result.departure, displayLocale);
 
-      $formData.arrival = format(
+      $formData.legs[legIndex]!.arrival = format(
         result.arrival,
         "yyyy-MM-dd'T'00:00:00.000'Z'",
       );
-      $formData.arrivalTime = formatAsTime(result.arrival, displayLocale);
+      $formData.legs[legIndex]!.arrivalTime = formatAsTime(result.arrival, displayLocale);
     }
 
     // Apply scheduled times. For future flights, fallback to lookup time when schedule is missing.
@@ -91,11 +96,11 @@
       result.departureScheduled ??
       (isFutureFlight(result) ? result.departure : null);
     if (departureScheduleSource) {
-      $formData.departureScheduled = format(
+      $formData.legs[legIndex]!.departureScheduled = format(
         departureScheduleSource,
         "yyyy-MM-dd'T'00:00:00.000'Z'",
       );
-      $formData.departureScheduledTime = formatAsTime(
+      $formData.legs[legIndex]!.departureScheduledTime = formatAsTime(
         departureScheduleSource,
         displayLocale,
       );
@@ -105,21 +110,21 @@
       result.arrivalScheduled ??
       (isFutureFlight(result) ? result.arrival : null);
     if (arrivalScheduleSource) {
-      $formData.arrivalScheduled = format(
+      $formData.legs[legIndex]!.arrivalScheduled = format(
         arrivalScheduleSource,
         "yyyy-MM-dd'T'00:00:00.000'Z'",
       );
-      $formData.arrivalScheduledTime = formatAsTime(
+      $formData.legs[legIndex]!.arrivalScheduledTime = formatAsTime(
         arrivalScheduleSource,
         displayLocale,
       );
     }
 
     // Apply terminal/gate info
-    $formData.departureTerminal = result.departureTerminal ?? null;
-    $formData.departureGate = result.departureGate ?? null;
-    $formData.arrivalTerminal = result.arrivalTerminal ?? null;
-    $formData.arrivalGate = result.arrivalGate ?? null;
+    $formData.legs[legIndex]!.departureTerminal = result.departureTerminal ?? null;
+    $formData.legs[legIndex]!.departureGate = result.departureGate ?? null;
+    $formData.legs[legIndex]!.arrivalTerminal = result.arrivalTerminal ?? null;
+    $formData.legs[legIndex]!.arrivalGate = result.arrivalGate ?? null;
 
     clearResults();
     toast.success('Flight found');
@@ -130,14 +135,14 @@
   }
 
   const lookupFlight = async () => {
-    if (!$formData.flightNumber) {
+    if (!leg.flightNumber) {
       return;
     }
 
     isSearching = true;
     clearResults();
 
-    const normalizedFlightNumber = $formData.flightNumber
+    const normalizedFlightNumber = leg.flightNumber
       .trim()
       .replace(/\s/g, '');
 
@@ -145,7 +150,7 @@
     try {
       const tempResults = await api.flight.lookup.query({
         flightNumber: normalizedFlightNumber,
-        date: $formData.departure ?? undefined,
+        date: leg.departure ?? undefined,
       });
       results = tempResults.map((r) => ({
         ...r,
@@ -199,7 +204,7 @@
   };
 </script>
 
-<Form.Field {form} name="flightNumber">
+<Form.Field {form} name={fieldName}>
   <Form.Control>
     {#snippet children({ props })}
       <Form.Label class="flex gap-1">
@@ -221,10 +226,10 @@
       </Form.Label>
       <div class="grid grid-cols-[1fr_auto] gap-2">
         <Input
-          bind:value={$formData.flightNumber}
+          bind:value={$formData.legs[legIndex].flightNumber}
           oninput={(e) => {
             lookupResults = null;
-            $formData.flightNumber = e.currentTarget.value
+            $formData.legs[legIndex]!.flightNumber = e.currentTarget.value
               .replace(/\s/g, '')
               .toUpperCase();
           }}
@@ -232,7 +237,7 @@
         />
         <Button
           onclick={lookupFlight}
-          disabled={!$formData.flightNumber || isSearching}
+          disabled={!leg.flightNumber || isSearching}
           variant="secondary"
           class="h-full"
           >{isSearching ? 'Searching...' : 'Search'}

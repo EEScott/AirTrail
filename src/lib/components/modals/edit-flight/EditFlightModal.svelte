@@ -33,67 +33,88 @@
   // (not necessarily the user's locale, because our time validator doesn't support all languages).
   const displayLocale = isUsingAmPm() ? 'en-US' : 'fr-FR';
 
-  const fromTz = flight.from?.tz ?? 'UTC';
-  const toTz = flight.to?.tz ?? 'UTC';
+  const buildLegFormData = (rawLeg: (typeof flight.raw.legs)[0]) => {
+    const fromTz = rawLeg.from?.tz ?? 'UTC';
+    const toTz = rawLeg.to?.tz ?? 'UTC';
 
-  const dep = decomposeToLocal(flight.raw.departure, fromTz, displayLocale);
-  const arr = decomposeToLocal(flight.raw.arrival, toTz, displayLocale);
-  const depSched = decomposeToLocal(
-    flight.raw.departureScheduled,
-    fromTz,
-    displayLocale,
-  );
-  const arrSched = decomposeToLocal(
-    flight.raw.arrivalScheduled,
-    toTz,
-    displayLocale,
-  );
-  const takeoffSched = decomposeToLocal(
-    flight.raw.takeoffScheduled,
-    fromTz,
-    displayLocale,
-  );
-  const takeoffAct = decomposeToLocal(
-    flight.raw.takeoffActual,
-    fromTz,
-    displayLocale,
-  );
-  const landingSched = decomposeToLocal(
-    flight.raw.landingScheduled,
-    toTz,
-    displayLocale,
-  );
-  const landingAct = decomposeToLocal(
-    flight.raw.landingActual,
-    toTz,
-    displayLocale,
-  );
+    const dep = decomposeToLocal(rawLeg.departure, fromTz, displayLocale);
+    const arr = decomposeToLocal(rawLeg.arrival, toTz, displayLocale);
+    const depSched = decomposeToLocal(
+      rawLeg.departureScheduled,
+      fromTz,
+      displayLocale,
+    );
+    const arrSched = decomposeToLocal(
+      rawLeg.arrivalScheduled,
+      toTz,
+      displayLocale,
+    );
+    const takeoffSched = decomposeToLocal(
+      rawLeg.takeoffScheduled,
+      fromTz,
+      displayLocale,
+    );
+    const takeoffAct = decomposeToLocal(
+      rawLeg.takeoffActual,
+      fromTz,
+      displayLocale,
+    );
+    const landingSched = decomposeToLocal(
+      rawLeg.landingScheduled,
+      toTz,
+      displayLocale,
+    );
+    const landingAct = decomposeToLocal(
+      rawLeg.landingActual,
+      toTz,
+      displayLocale,
+    );
+
+    return {
+      from: rawLeg.from,
+      to: rawLeg.to,
+      departure:
+        dep.date ??
+        (flight.raw.date
+          ? new Date(flight.raw.date + 'T00:00:00Z').toISOString()
+          : null),
+      departureTime: dep.time,
+      arrival: arr.date,
+      arrivalTime: arr.time,
+      departureScheduled: depSched.date,
+      departureScheduledTime: depSched.time,
+      arrivalScheduled: arrSched.date,
+      arrivalScheduledTime: arrSched.time,
+      takeoffScheduled: takeoffSched.date,
+      takeoffScheduledTime: takeoffSched.time,
+      takeoffActual: takeoffAct.date,
+      takeoffActualTime: takeoffAct.time,
+      landingScheduled: landingSched.date,
+      landingScheduledTime: landingSched.time,
+      landingActual: landingAct.date,
+      landingActualTime: landingAct.time,
+      airline: rawLeg.airline,
+      flightNumber: rawLeg.flightNumber,
+      aircraft: rawLeg.aircraft,
+      aircraftReg: rawLeg.aircraftReg,
+      departureTerminal: rawLeg.departureTerminal,
+      departureGate: rawLeg.departureGate,
+      arrivalTerminal: rawLeg.arrivalTerminal,
+      arrivalGate: rawLeg.arrivalGate,
+      seats: rawLeg.seats.map((s) => ({
+        userId: s.userId,
+        guestName: s.guestName,
+        seat: s.seat,
+        seatNumber: s.seatNumber,
+        seatClass: s.seatClass,
+      })),
+    };
+  };
 
   const schemaFlight = {
-    ...(flight.raw as unknown as Omit<
-      typeof flight.raw,
-      'id' | 'userId' | 'date' | 'duration'
-    >),
-    departure:
-      dep.date ??
-      (flight.raw.date
-        ? new Date(flight.raw.date + 'T00:00:00Z').toISOString()
-        : null),
-    arrival: arr.date,
-    departureScheduled: depSched.date,
-    arrivalScheduled: arrSched.date,
-    takeoffScheduled: takeoffSched.date,
-    takeoffActual: takeoffAct.date,
-    landingScheduled: landingSched.date,
-    landingActual: landingAct.date,
-    departureTime: dep.time,
-    arrivalTime: arr.time,
-    departureScheduledTime: depSched.time,
-    arrivalScheduledTime: arrSched.time,
-    takeoffScheduledTime: takeoffSched.time,
-    takeoffActualTime: takeoffAct.time,
-    landingScheduledTime: landingSched.time,
-    landingActualTime: landingAct.time,
+    flightReason: flight.raw.flightReason,
+    note: flight.raw.note,
+    legs: flight.raw.legs.map(buildLegFormData),
   };
 
   const form = superForm(

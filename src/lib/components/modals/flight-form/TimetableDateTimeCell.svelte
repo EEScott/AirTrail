@@ -42,6 +42,7 @@
 
   let {
     form,
+    legIndex = 0,
     dateField,
     timeField,
     label,
@@ -54,6 +55,7 @@
     disabled = false,
   }: {
     form: SuperForm<FlightFormData>;
+    legIndex?: number;
     dateField: DateFieldKey;
     timeField: TimeFieldKey;
     label: string;
@@ -72,20 +74,19 @@
     typeof Intl !== 'undefined'
       ? Intl.DateTimeFormat().resolvedOptions().timeZone
       : 'UTC';
-  const getFormValues = () => $formData as any;
+  const getLeg = () => ($formData as any).legs[legIndex];
   const getValue = (field: DateFieldKey | TimeFieldKey) => {
-    return (getFormValues()[field] as string | null) ?? null;
+    return (getLeg()?.[field] as string | null) ?? null;
   };
 
   const setValue = (
     field: DateFieldKey | TimeFieldKey,
     value: string | null,
   ) => {
-    formData.update((current) => {
-      return {
-        ...current,
-        [field]: value,
-      };
+    formData.update((current: any) => {
+      const legs = [...current.legs];
+      legs[legIndex] = { ...legs[legIndex], [field]: value };
+      return { ...current, legs };
     });
   };
 
@@ -122,7 +123,7 @@
   };
 
   const validateField = (field: DateFieldKey | TimeFieldKey) => {
-    validate(field as any);
+    validate(`legs[${legIndex}].${field}` as any);
   };
 
   const getDateTime = (
@@ -282,7 +283,7 @@
 </script>
 
 <div class="">
-  <Form.Field {form} name={dateField as any}>
+  <Form.Field {form} name={`legs[${legIndex}].${dateField}` as any}>
     <Form.Control>
       {#snippet children({ props })}
         <div class="relative">
@@ -481,7 +482,7 @@
           </Popover.Root>
           <input
             hidden
-            bind:value={$formData[dateField as keyof FlightFormData]}
+            value={getLeg()?.[dateField] ?? ''}
             name={props.name}
           />
           <input
@@ -505,12 +506,12 @@
     </Form.Control>
     <Form.FieldErrors class="text-xs" />
   </Form.Field>
-  <Form.Field {form} name={timeField as any}>
+  <Form.Field {form} name={`legs[${legIndex}].${timeField}` as any}>
     <Form.Control>
       {#snippet children({ props })}
         <input
           hidden
-          bind:value={$formData[timeField as keyof FlightFormData]}
+          value={getLeg()?.[timeField] ?? ''}
           name={props.name}
         />
       {/snippet}

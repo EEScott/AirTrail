@@ -16,14 +16,17 @@ export const load: PageServerLoad = async ({ locals }) => {
   const uniqueFlights: Flight[] = [];
 
   for (const flight of flights) {
-    const hasDuplicate = uniqueFlights.some(
-      (f) =>
+    const firstLeg = flight.legs[0];
+    const hasDuplicate = uniqueFlights.some((f) => {
+      const fFirstLeg = f.legs[0];
+      return (
         f.date === flight.date &&
-        f.from &&
-        f.to &&
-        f.from.id === flight.from?.id &&
-        f.to.id === flight.to?.id,
-    );
+        fFirstLeg?.from &&
+        fFirstLeg?.to &&
+        fFirstLeg.from.id === firstLeg?.from?.id &&
+        fFirstLeg.to.id === firstLeg?.to?.id
+      );
+    });
 
     if (hasDuplicate) {
       duplicates.push(flight);

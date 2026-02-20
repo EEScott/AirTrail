@@ -66,14 +66,16 @@
         const depDate = f.departure;
         const arrDate = f.arrival;
 
-        // Compare actual vs scheduled times
+        // Compare actual vs scheduled times (use first/last leg)
+        const firstRawLeg = f.raw.legs[0];
+        const lastRawLeg = f.raw.legs[f.raw.legs.length - 1];
         const depScheduled =
-          f.raw.departureScheduled && f.from
-            ? parseLocalizeISO(f.raw.departureScheduled, f.from.tz)
+          firstRawLeg?.departureScheduled && f.from
+            ? parseLocalizeISO(firstRawLeg.departureScheduled, f.from.tz)
             : null;
         const arrScheduled =
-          f.raw.arrivalScheduled && f.to
-            ? parseLocalizeISO(f.raw.arrivalScheduled, f.to.tz)
+          lastRawLeg?.arrivalScheduled && f.to
+            ? parseLocalizeISO(lastRawLeg.arrivalScheduled, f.to.tz)
             : null;
 
         let depStatus: 'early' | 'late' | null = null;

@@ -54,9 +54,8 @@ model airport {
   country      String
   custom       Boolean @default(false)
 
-  flights_from flight[] @relation("flights_from")
-
-  flights_to flight[] @relation("flights_to")
+  legs_from leg[] @relation("legs_from")
+  legs_to   leg[] @relation("legs_to")
 }
 
 model aircraft {
@@ -66,7 +65,7 @@ model aircraft {
   icao      String?
   source_id String?
 
-  flights flight[]
+  legs leg[]
 
   @@index([source_id], map: "aircraft_source_id_idx")
 }
@@ -79,14 +78,27 @@ model airline {
   icon_path String?
   source_id String?
 
-  flights flight[]
+  legs leg[]
 
   @@index([source_id], map: "airline_source_id_idx")
 }
 
 model flight {
-  id        Int     @id @default(autoincrement())
-  date      String
+  id   Int    @id @default(autoincrement())
+  date String
+
+  /// @kyselyType('leisure' | 'business' | 'crew' | 'other')
+  flight_reason String?
+  note          String?
+
+  legs leg[]
+}
+
+model leg {
+  id        Int @id @default(autoincrement())
+  flight_id Int
+  leg_order Int
+
   /// YYYY-MM-DDTHH:mm:ss.sssZ (ISO-8601)
   departure String?
   /// YYYY-MM-DDTHH:mm:ss.sssZ (ISO-8601)
@@ -111,29 +123,29 @@ model flight {
   arrival_gate       String?
 
   flight_number String?
-  /// @kyselyType('leisure' | 'business' | 'crew' | 'other')
-  flight_reason String?
   aircraft_reg  String?
-  note          String?
 
   from_id     Int?
   to_id       Int?
   aircraft_id Int?
   airline_id  Int?
 
-  from     airport?  @relation("flights_from", fields: [from_id], references: [id])
-  to       airport?  @relation("flights_to", fields: [to_id], references: [id])
+  flight   flight    @relation(fields: [flight_id], references: [id], onDelete: Cascade)
+  from     airport?  @relation("legs_from", fields: [from_id], references: [id])
+  to       airport?  @relation("legs_to", fields: [to_id], references: [id])
   aircraft aircraft? @relation(fields: [aircraft_id], references: [id])
   airline  airline?  @relation(fields: [airline_id], references: [id])
   seats    seat[]
 
-  @@index([from_id], map: "flight_from_id_idx")
-  @@index([to_id], map: "flight_to_id_idx")
+  @@unique([flight_id, leg_order], map: "leg_flight_id_leg_order_key")
+  @@index([flight_id], map: "leg_flight_id_idx")
+  @@index([from_id], map: "leg_from_id_idx")
+  @@index([to_id], map: "leg_to_id_idx")
 }
 
 model seat {
   id         Int     @id @default(autoincrement())
-  flight_id  Int
+  leg_id     Int
   user_id    String?
   guest_name String?
 
@@ -144,11 +156,11 @@ model seat {
   /// @kyselyType('economy' | 'economy+' | 'business' | 'first' | 'private')
   seat_class  String?
 
-  user   user?  @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  flight flight @relation(fields: [flight_id], references: [id], onDelete: Cascade)
+  user user? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  leg  leg   @relation(fields: [leg_id], references: [id], onDelete: Cascade)
 
-  @@unique([flight_id, user_id], map: "seat_user_id_flight_id_key")
-  @@unique([flight_id, guest_name], map: "seat_flight_id_guest_name_key")
+  @@unique([leg_id, user_id], map: "seat_leg_id_user_id_key")
+  @@unique([leg_id, guest_name], map: "seat_leg_id_guest_name_key")
 }
 
 model visited_country {

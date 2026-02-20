@@ -10,24 +10,28 @@
 
   let {
     form,
+    legIndex = 0,
   }: {
     form: SuperForm<z.infer<typeof flightSchema>>;
+    legIndex?: number;
   } = $props();
   const { form: formData } = form;
+
+  const fieldName = $derived(`legs[${legIndex}].airline` as const);
 
   let createAirline = $state(false);
 </script>
 
-<Form.Field {form} name="airline" class="flex flex-col">
+<Form.Field {form} name={fieldName} class="flex flex-col">
   <Form.Control>
     {#snippet children({ props })}
       <Form.Label>Airline</Form.Label>
       <AirlinePicker
-        bind:value={$formData.airline}
+        bind:value={$formData.legs[legIndex].airline}
         placeholder="Select airline"
         onCreateNew={() => (createAirline = true)}
       />
-      <input hidden bind:value={$formData.airline} name={props.name} />
+      <input hidden bind:value={$formData.legs[legIndex].airline} name={props.name} />
     {/snippet}
   </Form.Control>
   <Form.FieldErrors />

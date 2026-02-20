@@ -200,25 +200,35 @@ export const processLegacyAirTrailFile = async (
     }
 
     flights.push({
-      ...rawFlight,
-      // Legacy format doesn't support scheduled/actual datetime fields
-      departureScheduled: null,
-      arrivalScheduled: null,
-      takeoffScheduled: null,
-      takeoffActual: null,
-      landingScheduled: null,
-      landingActual: null,
-      departureTerminal: null,
-      departureGate: null,
-      arrivalTerminal: null,
-      arrivalGate: null,
-      airline,
-      aircraft: rawFlight.aircraft
-        ? await getAircraftByIcao(rawFlight.aircraft)
-        : null,
-      from: from || null,
-      to: to || null,
-      seats,
+      date: rawFlight.date,
+      flightReason: rawFlight.flightReason,
+      note: rawFlight.note,
+      legs: [
+        {
+          from: from || null,
+          to: to || null,
+          departure: rawFlight.departure,
+          arrival: rawFlight.arrival,
+          departureScheduled: null,
+          arrivalScheduled: null,
+          takeoffScheduled: null,
+          takeoffActual: null,
+          landingScheduled: null,
+          landingActual: null,
+          departureTerminal: null,
+          departureGate: null,
+          arrivalTerminal: null,
+          arrivalGate: null,
+          duration: rawFlight.duration,
+          flightNumber: rawFlight.flightNumber,
+          airline,
+          aircraft: rawFlight.aircraft
+            ? await getAircraftByIcao(rawFlight.aircraft)
+            : null,
+          aircraftReg: rawFlight.aircraftReg,
+          seats,
+        },
+      ],
     });
   }
 

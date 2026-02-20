@@ -39,8 +39,10 @@
   const { form: formData, enhance } = form;
 
   $effect(() => {
-    if ($formData.seats[0] && $formData.seats[0].userId === '<USER_ID>') {
-      $formData.seats[0].userId = page.data.user?.id ?? null;
+    for (const leg of $formData.legs) {
+      if (leg.seats[0] && leg.seats[0].userId === '<USER_ID>') {
+        leg.seats[0].userId = page.data.user?.id ?? null;
+      }
     }
   });
 </script>

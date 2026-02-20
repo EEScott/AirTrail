@@ -13,12 +13,16 @@
 
   let {
     form,
+    legIndex = 0,
   }: {
     form: SuperForm<z.infer<typeof flightSchema>>;
+    legIndex?: number;
   } = $props();
 
   const { form: formData } = form as SuperForm<any>;
-  const formValues = $derived.by(() => $formData as Record<string, any>);
+  const formValues = $derived.by(
+    () => ($formData as any).legs[legIndex] as Record<string, any>,
+  );
 
   let mobileTab: 'scheduled' | 'actual' = $state('actual');
 
@@ -148,24 +152,26 @@
         </div>
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Gate departure"
           dateField="departureScheduled"
           timeField="departureScheduledTime"
-          timezone={$formData.from?.tz}
+          timezone={formValues.from?.tz}
           baseDateTime={gateDepartureScheduled}
-          defaultDate={$formData.takeoffScheduled}
-          defaultTime={$formData.takeoffScheduledTime}
+          defaultDate={formValues.takeoffScheduled}
+          defaultTime={formValues.takeoffScheduledTime}
         />
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Gate departure"
           dateField="departure"
           timeField="departureTime"
-          timezone={$formData.from?.tz}
+          timezone={formValues.from?.tz}
           baseDateTime={gateDepartureActual}
           compareDateTime={gateDepartureScheduled}
-          defaultDate={$formData.takeoffActual ?? $formData.departureScheduled}
-          defaultTime={$formData.takeoffActualTime ??
+          defaultDate={formValues.takeoffActual ?? $formData.departureScheduled}
+          defaultTime={formValues.takeoffActualTime ??
             $formData.departureScheduledTime}
         />
       </div>
@@ -186,24 +192,26 @@
         </div>
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Takeoff"
           dateField="takeoffScheduled"
           timeField="takeoffScheduledTime"
-          timezone={$formData.from?.tz}
+          timezone={formValues.from?.tz}
           baseDateTime={gateDepartureScheduled}
-          defaultDate={$formData.departureScheduled}
-          defaultTime={$formData.departureScheduledTime}
+          defaultDate={formValues.departureScheduled}
+          defaultTime={formValues.departureScheduledTime}
         />
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Takeoff"
           dateField="takeoffActual"
           timeField="takeoffActualTime"
-          timezone={$formData.from?.tz}
+          timezone={formValues.from?.tz}
           baseDateTime={gateDepartureActual}
           compareDateTime={takeoffScheduled}
-          defaultDate={$formData.departure}
-          defaultTime={$formData.departureTime}
+          defaultDate={formValues.departure}
+          defaultTime={formValues.departureTime}
         />
       </div>
       <div
@@ -214,24 +222,26 @@
         </div>
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Landing"
           dateField="landingScheduled"
           timeField="landingScheduledTime"
-          timezone={$formData.to?.tz}
+          timezone={formValues.to?.tz}
           baseDateTime={gateDepartureScheduled}
-          defaultDate={$formData.arrivalScheduled}
-          defaultTime={$formData.arrivalScheduledTime}
+          defaultDate={formValues.arrivalScheduled}
+          defaultTime={formValues.arrivalScheduledTime}
         />
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Landing"
           dateField="landingActual"
           timeField="landingActualTime"
-          timezone={$formData.to?.tz}
+          timezone={formValues.to?.tz}
           baseDateTime={gateDepartureActual}
           compareDateTime={landingScheduled}
-          defaultDate={$formData.arrival}
-          defaultTime={$formData.arrivalTime}
+          defaultDate={formValues.arrival}
+          defaultTime={formValues.arrivalTime}
         />
       </div>
       <div class="grid grid-cols-[1.2fr_1fr_1fr] items-start gap-3">
@@ -251,24 +261,26 @@
         </div>
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Gate arrival"
           dateField="arrivalScheduled"
           timeField="arrivalScheduledTime"
-          timezone={$formData.to?.tz}
+          timezone={formValues.to?.tz}
           baseDateTime={gateDepartureScheduled}
-          defaultDate={$formData.landingScheduled}
-          defaultTime={$formData.landingScheduledTime}
+          defaultDate={formValues.landingScheduled}
+          defaultTime={formValues.landingScheduledTime}
         />
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Gate arrival"
           dateField="arrival"
           timeField="arrivalTime"
-          timezone={$formData.to?.tz}
+          timezone={formValues.to?.tz}
           baseDateTime={gateDepartureActual}
           compareDateTime={gateArrivalScheduled}
-          defaultDate={$formData.landingActual}
-          defaultTime={$formData.landingActualTime}
+          defaultDate={formValues.landingActual}
+          defaultTime={formValues.landingActualTime}
         />
       </div>
       <div
@@ -318,25 +330,27 @@
       {#if mobileTab === 'scheduled'}
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Gate departure"
           dateField="departureScheduled"
           timeField="departureScheduledTime"
-          timezone={$formData.from?.tz}
+          timezone={formValues.from?.tz}
           baseDateTime={gateDepartureScheduled}
-          defaultDate={$formData.takeoffScheduled}
-          defaultTime={$formData.takeoffScheduledTime}
+          defaultDate={formValues.takeoffScheduled}
+          defaultTime={formValues.takeoffScheduledTime}
         />
       {:else}
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Gate departure"
           dateField="departure"
           timeField="departureTime"
-          timezone={$formData.from?.tz}
+          timezone={formValues.from?.tz}
           baseDateTime={gateDepartureActual}
           compareDateTime={gateDepartureScheduled}
-          defaultDate={$formData.takeoffActual ?? $formData.departureScheduled}
-          defaultTime={$formData.takeoffActualTime ??
+          defaultDate={formValues.takeoffActual ?? $formData.departureScheduled}
+          defaultTime={formValues.takeoffActualTime ??
             $formData.departureScheduledTime}
         />
       {/if}
@@ -362,25 +376,27 @@
       {#if mobileTab === 'scheduled'}
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Takeoff"
           dateField="takeoffScheduled"
           timeField="takeoffScheduledTime"
-          timezone={$formData.from?.tz}
+          timezone={formValues.from?.tz}
           baseDateTime={gateDepartureScheduled}
-          defaultDate={$formData.departureScheduled}
-          defaultTime={$formData.departureScheduledTime}
+          defaultDate={formValues.departureScheduled}
+          defaultTime={formValues.departureScheduledTime}
         />
       {:else}
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Takeoff"
           dateField="takeoffActual"
           timeField="takeoffActualTime"
-          timezone={$formData.from?.tz}
+          timezone={formValues.from?.tz}
           baseDateTime={gateDepartureActual}
           compareDateTime={takeoffScheduled}
-          defaultDate={$formData.departure}
-          defaultTime={$formData.departureTime}
+          defaultDate={formValues.departure}
+          defaultTime={formValues.departureTime}
         />
       {/if}
     </div>
@@ -395,25 +411,27 @@
       {#if mobileTab === 'scheduled'}
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Landing"
           dateField="landingScheduled"
           timeField="landingScheduledTime"
-          timezone={$formData.to?.tz}
+          timezone={formValues.to?.tz}
           baseDateTime={gateDepartureScheduled}
-          defaultDate={$formData.arrivalScheduled}
-          defaultTime={$formData.arrivalScheduledTime}
+          defaultDate={formValues.arrivalScheduled}
+          defaultTime={formValues.arrivalScheduledTime}
         />
       {:else}
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Landing"
           dateField="landingActual"
           timeField="landingActualTime"
-          timezone={$formData.to?.tz}
+          timezone={formValues.to?.tz}
           baseDateTime={gateDepartureActual}
           compareDateTime={landingScheduled}
-          defaultDate={$formData.arrival}
-          defaultTime={$formData.arrivalTime}
+          defaultDate={formValues.arrival}
+          defaultTime={formValues.arrivalTime}
         />
       {/if}
     </div>
@@ -438,25 +456,27 @@
       {#if mobileTab === 'scheduled'}
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Gate arrival"
           dateField="arrivalScheduled"
           timeField="arrivalScheduledTime"
-          timezone={$formData.to?.tz}
+          timezone={formValues.to?.tz}
           baseDateTime={gateDepartureScheduled}
-          defaultDate={$formData.landingScheduled}
-          defaultTime={$formData.landingScheduledTime}
+          defaultDate={formValues.landingScheduled}
+          defaultTime={formValues.landingScheduledTime}
         />
       {:else}
         <TimetableDateTimeCell
           {form}
+          {legIndex}
           label="Gate arrival"
           dateField="arrival"
           timeField="arrivalTime"
-          timezone={$formData.to?.tz}
+          timezone={formValues.to?.tz}
           baseDateTime={gateDepartureActual}
           compareDateTime={gateArrivalScheduled}
-          defaultDate={$formData.landingActual}
-          defaultTime={$formData.landingActualTime}
+          defaultDate={formValues.landingActual}
+          defaultTime={formValues.landingActualTime}
         />
       {/if}
     </div>

@@ -35,25 +35,35 @@ export const listFlightBaseQuery = (db: Kysely<DB>, userId: string) => {
   return db
     .selectFrom('flight')
     .selectAll('flight')
-    .select((eb) =>
-      airports(db, eb.ref('flight.fromId'), eb.ref('flight.toId')),
-    )
-    .select(({ ref }) => [aircraft(db, ref('flight.aircraftId'))])
-    .select(({ ref }) => [airline(db, ref('flight.airlineId'))])
     .select((eb) => [
       jsonArrayFrom(
         eb
-          .selectFrom('seat')
-          .selectAll()
-          .whereRef('seat.flightId', '=', 'flight.id'),
-      ).as('seats'),
+          .selectFrom('leg')
+          .selectAll('leg')
+          .select((lb) =>
+            airports(db, lb.ref('leg.fromId'), lb.ref('leg.toId')),
+          )
+          .select(({ ref }) => [aircraft(db, ref('leg.aircraftId'))])
+          .select(({ ref }) => [airline(db, ref('leg.airlineId'))])
+          .select((lb) => [
+            jsonArrayFrom(
+              lb
+                .selectFrom('seat')
+                .selectAll()
+                .whereRef('seat.legId', '=', 'leg.id'),
+            ).as('seats'),
+          ])
+          .whereRef('leg.flightId', '=', 'flight.id')
+          .orderBy('leg.legOrder', 'asc'),
+      ).as('legs'),
     ])
     .where((eb) =>
       eb.exists(
         eb
-          .selectFrom('seat')
-          .select('seat.id')
-          .whereRef('seat.flightId', '=', 'flight.id')
+          .selectFrom('leg')
+          .innerJoin('seat', 'seat.legId', 'leg.id')
+          .select('leg.id')
+          .whereRef('leg.flightId', '=', 'flight.id')
           .where('seat.userId', '=', userId),
       ),
     );
@@ -68,19 +78,30 @@ export const listFlightPrimitive = async (db: Kysely<DB>, userId: string) => {
 export const getFlightPrimitive = async (db: Kysely<DB>, id: number) => {
   return await db
     .selectFrom('flight')
-    .selectAll()
-    .select(({ ref }) => airports(db, ref('flight.fromId'), ref('flight.toId')))
-    .select(({ ref }) => [aircraft(db, ref('flight.aircraftId'))])
-    .select(({ ref }) => [airline(db, ref('flight.airlineId'))])
-    .select((eb) =>
+    .selectAll('flight')
+    .select((eb) => [
       jsonArrayFrom(
         eb
-          .selectFrom('seat')
-          .selectAll()
-          .whereRef('seat.flightId', '=', 'flight.id'),
-      ).as('seats'),
-    )
-    .where('id', '=', id)
+          .selectFrom('leg')
+          .selectAll('leg')
+          .select((lb) =>
+            airports(db, lb.ref('leg.fromId'), lb.ref('leg.toId')),
+          )
+          .select(({ ref }) => [aircraft(db, ref('leg.aircraftId'))])
+          .select(({ ref }) => [airline(db, ref('leg.airlineId'))])
+          .select((lb) => [
+            jsonArrayFrom(
+              lb
+                .selectFrom('seat')
+                .selectAll()
+                .whereRef('seat.legId', '=', 'leg.id'),
+            ).as('seats'),
+          ])
+          .whereRef('leg.flightId', '=', 'flight.id')
+          .orderBy('leg.legOrder', 'asc'),
+      ).as('legs'),
+    ])
+    .where('flight.id', '=', id)
     .executeTakeFirst();
 };
 
@@ -89,34 +110,50 @@ export const createFlightPrimitive = async (
   data: CreateFlight,
 ) => {
   return await db.transaction().execute(async (trx) => {
-    const { seats, from, to, aircraft, airline, ...flightData } = data;
-    const fromId = from?.id ?? null;
-    const toId = to?.id ?? null;
-    const aircraftId = aircraft?.id ?? null;
-    const airlineId = airline?.id ?? null;
+    const { legs, ...flightData } = data;
 
     const resp = await trx
       .insertInto('flight')
-      .values({
-        ...flightData,
-        fromId,
-        toId,
-        aircraftId,
-        airlineId,
-      })
+      .values(flightData)
       .returning('id')
       .executeTakeFirstOrThrow();
 
-    const seatData = seats.map((seat) => ({
-      flightId: resp.id,
-      userId: seat.userId,
-      guestName: seat.guestName,
-      seat: seat.seat,
-      seatNumber: seat.seatNumber,
-      seatClass: seat.seatClass,
-    }));
+    for (let i = 0; i < legs.length; i++) {
+      const leg = legs[i]!;
+      const { seats, from, to, aircraft, airline, ...legData } = leg;
+      const fromId = from?.id ?? null;
+      const toId = to?.id ?? null;
+      const aircraftId = aircraft?.id ?? null;
+      const airlineId = airline?.id ?? null;
 
-    await trx.insertInto('seat').values(seatData).executeTakeFirstOrThrow();
+      const legResp = await trx
+        .insertInto('leg')
+        .values({
+          ...legData,
+          flightId: resp.id,
+          legOrder: i,
+          fromId,
+          toId,
+          aircraftId,
+          airlineId,
+        })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+
+      if (seats.length) {
+        const seatData = seats.map((seat) => ({
+          legId: legResp.id,
+          userId: seat.userId,
+          guestName: seat.guestName,
+          seat: seat.seat,
+          seatNumber: seat.seatNumber,
+          seatClass: seat.seatClass,
+        }));
+
+        await trx.insertInto('seat').values(seatData).executeTakeFirstOrThrow();
+      }
+    }
+
     return resp.id;
   });
 };
@@ -127,37 +164,52 @@ export const updateFlightPrimitive = async (
   data: CreateFlight,
 ) => {
   await db.transaction().execute(async (trx) => {
-    const { seats, from, to, aircraft, airline, ...flightData } = data;
-    const fromId = from.id;
-    const toId = to.id;
-    const aircraftId = aircraft?.id ?? null;
-    const airlineId = airline?.id ?? null;
+    const { legs, ...flightData } = data;
 
     await trx
       .updateTable('flight')
-      .set({
-        ...flightData,
-        fromId,
-        toId,
-        aircraftId,
-        airlineId,
-      })
+      .set(flightData)
       .where('id', '=', id)
       .executeTakeFirstOrThrow();
 
-    if (seats.length) {
-      await trx.deleteFrom('seat').where('flightId', '=', id).execute();
+    // Delete all existing legs (cascade deletes seats)
+    await trx.deleteFrom('leg').where('flightId', '=', id).execute();
 
-      const seatData = seats.map((seat) => ({
-        flightId: id,
-        userId: seat.userId,
-        guestName: seat.guestName,
-        seat: seat.seat,
-        seatNumber: seat.seatNumber,
-        seatClass: seat.seatClass,
-      }));
+    // Re-insert legs and seats
+    for (let i = 0; i < legs.length; i++) {
+      const leg = legs[i]!;
+      const { seats, from, to, aircraft, airline, ...legData } = leg;
+      const fromId = from?.id ?? null;
+      const toId = to?.id ?? null;
+      const aircraftId = aircraft?.id ?? null;
+      const airlineId = airline?.id ?? null;
 
-      await trx.insertInto('seat').values(seatData).executeTakeFirstOrThrow();
+      const legResp = await trx
+        .insertInto('leg')
+        .values({
+          ...legData,
+          flightId: id,
+          legOrder: i,
+          fromId,
+          toId,
+          aircraftId,
+          airlineId,
+        })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+
+      if (seats.length) {
+        const seatData = seats.map((seat) => ({
+          legId: legResp.id,
+          userId: seat.userId,
+          guestName: seat.guestName,
+          seat: seat.seat,
+          seatNumber: seat.seatNumber,
+          seatClass: seat.seatClass,
+        }));
+
+        await trx.insertInto('seat').values(seatData).executeTakeFirstOrThrow();
+      }
     }
   });
 };
@@ -167,38 +219,47 @@ export const createManyFlightsPrimitive = async (
   data: CreateFlight[],
 ) => {
   await db.transaction().execute(async (trx) => {
-    const flights = await trx
-      .insertInto('flight')
-      .values(
-        data.map(({ seats: _, from, to, aircraft, airline, ...rest }) => ({
-          ...rest,
-          fromId: from?.id ?? null,
-          toId: to?.id ?? null,
-          aircraftId: aircraft?.id ?? null,
-          airlineId: airline?.id ?? null,
-        })),
-      )
-      .returning('id')
-      .execute();
+    for (const flight of data) {
+      const { legs, ...flightData } = flight;
 
-    const seatData = flights.flatMap((flight, index) => {
-      const flightInput = data[index];
+      const resp = await trx
+        .insertInto('flight')
+        .values(flightData)
+        .returning('id')
+        .executeTakeFirstOrThrow();
 
-      if (flightInput && flightInput.seats.length > 0) {
-        return flightInput.seats.map((seat) => ({
-          flightId: flight.id,
-          userId: seat.userId,
-          guestName: seat.guestName,
-          seat: seat.seat,
-          seatNumber: seat.seatNumber,
-          seatClass: seat.seatClass,
-        }));
+      for (let i = 0; i < legs.length; i++) {
+        const leg = legs[i]!;
+        const { seats, from, to, aircraft, airline, ...legData } = leg;
+
+        const legResp = await trx
+          .insertInto('leg')
+          .values({
+            ...legData,
+            flightId: resp.id,
+            legOrder: i,
+            fromId: from?.id ?? null,
+            toId: to?.id ?? null,
+            aircraftId: aircraft?.id ?? null,
+            airlineId: airline?.id ?? null,
+          })
+          .returning('id')
+          .executeTakeFirstOrThrow();
+
+        if (seats.length) {
+          const seatData = seats.map((seat) => ({
+            legId: legResp.id,
+            userId: seat.userId,
+            guestName: seat.guestName,
+            seat: seat.seat,
+            seatNumber: seat.seatNumber,
+            seatClass: seat.seatClass,
+          }));
+
+          await trx.insertInto('seat').values(seatData).execute();
+        }
       }
-
-      return [];
-    });
-
-    await trx.insertInto('seat').values(seatData).execute();
+    }
   });
 };
 

@@ -75,12 +75,14 @@
     const byName = new Map<string, Airline>();
 
     for (const flight of flights) {
-      if (flight.airline) {
-        frequencyMap.set(
-          flight.airline.name,
-          (frequencyMap.get(flight.airline.name) ?? 0) + 1,
-        );
-        byName.set(flight.airline.name, flight.airline);
+      for (const leg of flight.legs) {
+        if (leg.airline) {
+          frequencyMap.set(
+            leg.airline.name,
+            (frequencyMap.get(leg.airline.name) ?? 0) + 1,
+          );
+          byName.set(leg.airline.name, leg.airline);
+        }
       }
     }
 
@@ -99,11 +101,13 @@
 
     const aircraftFrequencyMap = flights.reduce<Map<string, number>>(
       (acc, flight) => {
-        if (flight.aircraft) {
-          acc.set(
-            flight.aircraft.name,
-            (acc.get(flight.aircraft.name) || 0) + 1,
-          );
+        for (const leg of flight.legs) {
+          if (leg.aircraft) {
+            acc.set(
+              leg.aircraft.name,
+              (acc.get(leg.aircraft.name) || 0) + 1,
+            );
+          }
         }
         return acc;
       },
@@ -129,8 +133,13 @@
 
     const regFrequencyMap = flights.reduce<Map<string, number>>(
       (acc, flight) => {
-        if (flight.aircraftReg) {
-          acc.set(flight.aircraftReg, (acc.get(flight.aircraftReg) || 0) + 1);
+        for (const leg of flight.legs) {
+          if (leg.aircraftReg) {
+            acc.set(
+              leg.aircraftReg,
+              (acc.get(leg.aircraftReg) || 0) + 1,
+            );
+          }
         }
         return acc;
       },

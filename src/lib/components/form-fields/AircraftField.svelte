@@ -16,16 +16,20 @@
 
   let {
     form,
+    legIndex = 0,
   }: {
     form: SuperForm<z.infer<typeof flightSchema>>;
+    legIndex?: number;
   } = $props();
   const { form: formData } = form;
 
+  const fieldName = $derived(`legs[${legIndex}].aircraft` as const);
+
   const selected = writable(
-    $formData.aircraft
+    $formData.legs[legIndex]?.aircraft
       ? {
-          label: $formData.aircraft?.name || 'Unknown Aircraft',
-          value: $formData.aircraft.id,
+          label: $formData.legs[legIndex]?.aircraft?.name || 'Unknown Aircraft',
+          value: $formData.legs[legIndex]!.aircraft!.id,
         }
       : undefined,
   );
@@ -38,9 +42,9 @@
     selected,
     onSelectedChange: ({ next }) => {
       if (next?.value) {
-        $formData.aircraft = next.value;
+        $formData.legs[legIndex]!.aircraft = next.value;
       } else {
-        $formData.aircraft = null;
+        $formData.legs[legIndex]!.aircraft = null;
       }
       return next;
     },
@@ -48,18 +52,19 @@
 
   // If the field is updated externally, update the selected value
   formData.subscribe(() => {
+    const currentAircraft = $formData.legs[legIndex]?.aircraft;
     if (
-      $formData.aircraft === $selected?.value ||
-      (!$formData.aircraft && !$selected?.value)
+      currentAircraft === $selected?.value ||
+      (!currentAircraft && !$selected?.value)
     ) {
       return;
     }
 
     selected.set(
-      $formData.aircraft
+      currentAircraft
         ? {
-            label: $formData.aircraft?.name || 'Unknown Aircraft',
-            value: $formData.aircraft.id,
+            label: currentAircraft?.name || 'Unknown Aircraft',
+            value: currentAircraft.id,
           }
         : undefined,
     );
@@ -126,7 +131,7 @@
   let createAircraft = $state(false);
 </script>
 
-<Form.Field {form} name="aircraft" class="flex flex-col">
+<Form.Field {form} name={fieldName} class="flex flex-col">
   <Form.Control>
     {#snippet children({ props })}
       <Form.Label>Aircraft</Form.Label>
@@ -143,7 +148,7 @@
             onclick={() => {
               // @ts-expect-error - This is totally fine
               $selected = undefined;
-              $formData.aircraft = null;
+              $formData.legs[legIndex]!.aircraft = null;
               $inputValue = '';
             }}
             class="cursor-pointer absolute right-10 top-1/2 z-10 -translate-y-1/2 text-muted-foreground hover:text-foreground"
@@ -157,7 +162,7 @@
           <ChevronsUpDown size={16} class="opacity-50" />
         </div>
       </div>
-      <input hidden bind:value={$formData.aircraft} name={props.name} />
+      <input hidden bind:value={$formData.legs[legIndex].aircraft} name={props.name} />
     {/snippet}
   </Form.Control>
   {#if $open}

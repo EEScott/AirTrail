@@ -17,25 +17,32 @@
   let {
     field,
     form,
+    legIndex = 0,
   }: {
     field: 'departure' | 'arrival';
     form: SuperForm<z.infer<typeof flightSchema>>;
+    legIndex?: number;
   } = $props();
   const { form: formData, validate } = form;
 
+  const leg = $derived($formData.legs[legIndex]!);
+  const fieldName = $derived(`legs[${legIndex}].${field}` as const);
+  const timeFieldName = $derived(`legs[${legIndex}].${field}Time` as const);
+  const timeKey = $derived(`${field}Time` as const);
+
   let dateValue: DateValue | undefined = $state(
-    $formData[field] ? dateValueFromISO($formData[field]) : undefined,
+    leg[field] ? dateValueFromISO(leg[field]) : undefined,
   );
 
   let timeValue: Time | undefined = $state(
-    $formData[`${field}Time`]
-      ? parseTimeValue($formData[`${field}Time`])
+    leg[timeKey]
+      ? parseTimeValue(leg[timeKey])
       : undefined,
   );
 
   $effect(() => {
-    if ($formData[field]) {
-      const date = dateValueFromISO($formData[field]);
+    if (leg[field]) {
+      const date = dateValueFromISO(leg[field]);
       if (!dateValue || date.compare(dateValue) !== 0) {
         dateValue = date;
       }
@@ -45,12 +52,12 @@
   });
 
   $effect(() => {
-    const timeString = $formData[`${field}Time`];
+    const timeString = leg[timeKey];
     if (timeString) {
       const parsed = parseTimeValue(timeString);
       if (!parsed) {
         timeValue = undefined;
-        ($formData as Record<string, string | null>)[`${field}Time`] = null;
+        $formData.legs[legIndex]![timeKey] = null;
         return;
       }
 
@@ -68,7 +75,7 @@
 </script>
 
 <div class="grid gap-2 grid-cols-[3fr_2fr] items-start">
-  <Form.Field {form} name={field}>
+  <Form.Field {form} name={fieldName}>
     <Form.Control>
       {#snippet children({ props })}
         <Form.Label>
@@ -79,15 +86,15 @@
           onValueChange={(v) => {
             if (v === undefined) {
               dateValue = undefined;
-              ($formData as Record<string, string | null>)[field] = null;
-              validate(field);
+              $formData.legs[legIndex]![field] = null;
+              validate(fieldName);
               return;
             }
             dateValue = v;
-            ($formData as Record<string, string | null>)[field] = dateValue
+            $formData.legs[legIndex]![field] = dateValue
               .toDate('UTC')
               .toISOString();
-            validate(field);
+            validate(fieldName);
           }}
           granularity="day"
           minValue={parseDate('1970-01-01')}
@@ -132,15 +139,14 @@
                       onValueChange={(v) => {
                         if (v === undefined) {
                           dateValue = undefined;
-                          ($formData as Record<string, string | null>)[field] =
-                            null;
-                          validate(field);
+                          $formData.legs[legIndex]![field] = null;
+                          validate(fieldName);
                           return;
                         }
                         dateValue = v;
-                        ($formData as Record<string, string | null>)[field] =
+                        $formData.legs[legIndex]![field] =
                           dateValue?.toDate('UTC').toISOString() ?? null;
-                        validate(field);
+                        validate(fieldName);
                       }}
                     />
                   </Popover.Content>
@@ -149,12 +155,12 @@
             </DateField.Input>
           </div>
         </DateField.Root>
-        <input hidden bind:value={$formData[field]} name={props.name} />
+        <input hidden bind:value={$formData.legs[legIndex][field]} name={props.name} />
       {/snippet}
     </Form.Control>
     <Form.FieldErrors />
   </Form.Field>
-  <Form.Field {form} name={`${field}Time`}>
+  <Form.Field {form} name={timeFieldName}>
     <Form.Control>
       {#snippet children({ props })}
         <Form.Label class="flex items-center gap-2">
@@ -166,16 +172,14 @@
           onValueChange={(value) => {
             if (!value) {
               timeValue = undefined;
-              ($formData as Record<string, string | null>)[`${field}Time`] =
-                null;
-              validate(`${field}Time`);
+              $formData.legs[legIndex]![timeKey] = null;
+              validate(timeFieldName);
               return;
             }
 
             timeValue = value;
-            ($formData as Record<string, string | null>)[`${field}Time`] =
-              formatTimeValue(value);
-            validate(`${field}Time`);
+            $formData.legs[legIndex]![timeKey] = formatTimeValue(value);
+            validate(timeFieldName);
           }}
           granularity="minute"
           locale={navigator.language}
@@ -211,7 +215,7 @@
         </TimeField.Root>
         <input
           hidden
-          bind:value={$formData[`${field}Time`]}
+          bind:value={$formData.legs[legIndex][timeKey]}
           name={props.name}
         />
       {/snippet}

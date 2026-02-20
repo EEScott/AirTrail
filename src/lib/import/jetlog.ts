@@ -162,36 +162,42 @@ export const processJetLogFile = async (
 
     flights.push({
       date: row.date,
-      from: from || null,
-      to: to || null,
-      departure: departure ? departure.toISOString() : null,
-      arrival: arrival ? arrival.toISOString() : null,
-      departureScheduled: null,
-      arrivalScheduled: null,
-      takeoffScheduled: null,
-      takeoffActual: null,
-      landingScheduled: null,
-      landingActual: null,
-      departureTerminal: null,
-      departureGate: null,
-      arrivalTerminal: null,
-      arrivalGate: null,
-      duration,
-      flightNumber: row.flight_number
-        ? row.flight_number.substring(0, 10) // limit to 10 characters
-        : null,
-      note: row.notes,
-      airline,
-      aircraft,
-      aircraftReg: row.tail_number ? row.tail_number.substring(0, 10) : null,
       flightReason: row.purpose as CreateFlight['flightReason'],
-      seats: [
+      note: row.notes,
+      legs: [
         {
-          userId,
-          seat: row.seat as Seat['seat'],
-          seatClass: seatClass as Seat['seatClass'],
-          seatNumber: null,
-          guestName: null,
+          from: from || null,
+          to: to || null,
+          departure: departure ? departure.toISOString() : null,
+          arrival: arrival ? arrival.toISOString() : null,
+          departureScheduled: null,
+          arrivalScheduled: null,
+          takeoffScheduled: null,
+          takeoffActual: null,
+          landingScheduled: null,
+          landingActual: null,
+          departureTerminal: null,
+          departureGate: null,
+          arrivalTerminal: null,
+          arrivalGate: null,
+          duration,
+          flightNumber: row.flight_number
+            ? row.flight_number.substring(0, 10)
+            : null,
+          airline,
+          aircraft,
+          aircraftReg: row.tail_number
+            ? row.tail_number.substring(0, 10)
+            : null,
+          seats: [
+            {
+              userId,
+              seat: row.seat as Seat['seat'],
+              seatClass: seatClass as Seat['seatClass'],
+              seatNumber: null,
+              guestName: null,
+            },
+          ],
         },
       ],
     });

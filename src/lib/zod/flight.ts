@@ -27,7 +27,7 @@ const timePrimitive = z
 
 const dateTimePrimitive = z.string().datetime({ offset: true });
 
-export const flightAirportsSchema = z.object({
+export const legAirportsSchema = z.object({
   from: flightAirportSchema
     .nullable()
     .default(null)
@@ -38,7 +38,7 @@ export const flightAirportsSchema = z.object({
     .refine((value) => value !== null, 'Select an arrival airport'),
 });
 
-export const flightDateTimeSchema = z.object({
+export const legDateTimeSchema = z.object({
   departure: z
     .string()
     .datetime({ offset: true, message: 'Select a departure date' })
@@ -63,7 +63,7 @@ export const flightDateTimeSchema = z.object({
   landingActualTime: timePrimitive,
 });
 
-export const flightSeatInformationSchema = z.object({
+export const legSeatInformationSchema = z.object({
   seats: z
     .object({
       userId: z.string().nullable(),
@@ -92,8 +92,7 @@ export const flightSeatInformationSchema = z.object({
     ]),
 });
 
-export const flightOptionalInformationSchema = z.object({
-  id: z.number().optional(), // Only for editing an existing flight
+export const legOptionalInformationSchema = z.object({
   airline: airlineSchema.nullable(),
   flightNumber: z.string().max(10, 'Flight number is too long').nullable(), // should cover all cases
   aircraft: aircraftSchema.nullable(),
@@ -101,8 +100,6 @@ export const flightOptionalInformationSchema = z.object({
     .string()
     .max(10, 'Aircraft registration is too long')
     .nullable(),
-  flightReason: z.enum(FlightReasons).nullable(),
-  note: z.string().max(1000, 'Note is too long').nullable(),
   // TODO: Terminal/gate fields (populated via flight lookup, not editable in UI yet)
   departureTerminal: z.string().max(10).nullable().optional(),
   departureGate: z.string().max(10).nullable().optional(),
@@ -110,7 +107,35 @@ export const flightOptionalInformationSchema = z.object({
   arrivalGate: z.string().max(10).nullable().optional(),
 });
 
-export const flightSchema = flightAirportsSchema
-  .merge(flightDateTimeSchema)
-  .merge(flightOptionalInformationSchema)
-  .merge(flightSeatInformationSchema);
+export const legSchema = legAirportsSchema
+  .merge(legDateTimeSchema)
+  .merge(legOptionalInformationSchema)
+  .merge(legSeatInformationSchema);
+
+export const flightSchema = z.object({
+  id: z.number().optional(), // Only for editing an existing flight
+  flightReason: z.enum(FlightReasons).nullable(),
+  note: z.string().max(1000, 'Note is too long').nullable(),
+  legs: z.array(legSchema).min(1, 'At least one leg is required'),
+});
+
+// Keep these exports for backward compatibility with form fields and other consumers
+export const flightAirportsSchema = legAirportsSchema;
+export const flightDateTimeSchema = legDateTimeSchema;
+export const flightSeatInformationSchema = legSeatInformationSchema;
+export const flightOptionalInformationSchema = z.object({
+  id: z.number().optional(),
+  airline: airlineSchema.nullable(),
+  flightNumber: z.string().max(10, 'Flight number is too long').nullable(),
+  aircraft: aircraftSchema.nullable(),
+  aircraftReg: z
+    .string()
+    .max(10, 'Aircraft registration is too long')
+    .nullable(),
+  flightReason: z.enum(FlightReasons).nullable(),
+  note: z.string().max(1000, 'Note is too long').nullable(),
+  departureTerminal: z.string().max(10).nullable().optional(),
+  departureGate: z.string().max(10).nullable().optional(),
+  arrivalTerminal: z.string().max(10).nullable().optional(),
+  arrivalGate: z.string().max(10).nullable().optional(),
+});

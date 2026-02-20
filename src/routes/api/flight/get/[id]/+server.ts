@@ -17,7 +17,11 @@ export const GET: RequestHandler = async ({ request, params }) => {
   }
 
   const flight = await getFlight(id);
-  if (!flight?.seats.some((seat) => seat.userId === user.id)) {
+  if (
+    !flight?.legs.some((leg) =>
+      leg.seats.some((seat) => seat.userId === user.id),
+    )
+  ) {
     return apiError(
       'Flight not found or you do not have a seat on this flight',
       403,

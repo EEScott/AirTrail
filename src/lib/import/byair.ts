@@ -219,35 +219,42 @@ export const processByAirFile = async (
 
     flights.push({
       date,
-      from: from || null,
-      to: to || null,
-      departure: departure ? departure.toISOString() : null,
-      arrival: adjustedArrival ? adjustedArrival.toISOString() : null,
-      departureScheduled: null,
-      arrivalScheduled: null,
-      takeoffScheduled: null,
-      takeoffActual: null,
-      landingScheduled: null,
-      landingActual: null,
-      departureTerminal: null,
-      departureGate: null,
-      arrivalTerminal: null,
-      arrivalGate: null,
-      duration,
-      flightNumber: flightNumber ? flightNumber.substring(0, 10) : null,
-      note: buildNotes(),
-      airline,
-      aircraft: null,
-      aircraftReg: null,
       flightReason: mapFlightReason(row.purpose),
-      seats: [
+      note: buildNotes(),
+      legs: [
         {
-          userId,
-          seat:
-            mapSeatTypeFromClass(row.seat_class) ?? mapSeatType(row.seat_type),
-          seatClass: mapSeatClass(row.seat_class),
-          seatNumber: row.seat_number ? row.seat_number.substring(0, 5) : null,
-          guestName: null,
+          from: from || null,
+          to: to || null,
+          departure: departure ? departure.toISOString() : null,
+          arrival: adjustedArrival ? adjustedArrival.toISOString() : null,
+          departureScheduled: null,
+          arrivalScheduled: null,
+          takeoffScheduled: null,
+          takeoffActual: null,
+          landingScheduled: null,
+          landingActual: null,
+          departureTerminal: null,
+          departureGate: null,
+          arrivalTerminal: null,
+          arrivalGate: null,
+          duration,
+          flightNumber: flightNumber ? flightNumber.substring(0, 10) : null,
+          airline,
+          aircraft: null,
+          aircraftReg: null,
+          seats: [
+            {
+              userId,
+              seat:
+                mapSeatTypeFromClass(row.seat_class) ??
+                mapSeatType(row.seat_type),
+              seatClass: mapSeatClass(row.seat_class),
+              seatNumber: row.seat_number
+                ? row.seat_number.substring(0, 5)
+                : null,
+              guestName: null,
+            },
+          ],
         },
       ],
     });

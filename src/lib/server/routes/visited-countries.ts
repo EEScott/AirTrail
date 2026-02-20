@@ -64,18 +64,20 @@ export const visitedCountriesRouter = router({
     const countries: Set<number> = new Set();
 
     for (const flight of flights) {
-      if (!flight.from || !flight.to) {
-        continue;
-      }
+      for (const leg of flight.legs) {
+        if (!leg.from || !leg.to) {
+          continue;
+        }
 
-      const originCountry = countryFromAlpha2(flight.from.country);
-      const destinationCountry = countryFromAlpha2(flight.to.country);
-      if (!originCountry || !destinationCountry) {
-        continue;
-      }
+        const originCountry = countryFromAlpha2(leg.from.country);
+        const destinationCountry = countryFromAlpha2(leg.to.country);
+        if (!originCountry || !destinationCountry) {
+          continue;
+        }
 
-      countries.add(originCountry.numeric);
-      countries.add(destinationCountry.numeric);
+        countries.add(originCountry.numeric);
+        countries.add(destinationCountry.numeric);
+      }
     }
 
     if (countries.size === 0) {

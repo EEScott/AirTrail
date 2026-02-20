@@ -43,9 +43,20 @@
   });
 
   const matchesRoute = (f: FlightData, r: Route): boolean => {
-    const fromId = f.from?.id.toString();
-    const toId = f.to?.id.toString();
-    return (fromId === r.a && toId === r.b) || (fromId === r.b && toId === r.a);
+    return f.legs.some((leg) => {
+      const legFromId = leg.from?.id.toString();
+      const legToId = leg.to?.id.toString();
+      return (
+        (legFromId === r.a && legToId === r.b) ||
+        (legFromId === r.b && legToId === r.a)
+      );
+    });
+  };
+
+  const getAllAirportIds = (f: FlightData): string[] => {
+    return f.legs
+      .flatMap((leg) => [leg.from?.id.toString(), leg.to?.id.toString()])
+      .filter((id): id is string => !!id);
   };
 
   const filteredFlights = $derived.by(() => {
@@ -62,11 +73,9 @@
         }
         if (
           tempFilters.airportsEither.length &&
-          (!fromId ||
-            !toId ||
-            ![fromId, toId].some((id) =>
-              tempFilters.airportsEither.includes(id),
-            ))
+          !getAllAirportIds(f).some((id) =>
+            tempFilters.airportsEither.includes(id),
+          )
         ) {
           return false;
         }
@@ -85,9 +94,9 @@
         }
         if (
           filters.airportsEither.length &&
-          (!fromId ||
-            !toId ||
-            ![fromId, toId].some((id) => filters.airportsEither.includes(id)))
+          !getAllAirportIds(f).some((id) =>
+            filters.airportsEither.includes(id),
+          )
         ) {
           return false;
         }
@@ -116,21 +125,27 @@
 
       if (
         filters.airline.length &&
-        !filters.airline.includes(f.airline?.name || '')
+        !f.legs.some((leg) =>
+          filters.airline.includes(leg.airline?.name || ''),
+        )
       ) {
         return false;
       }
 
       if (
         filters.aircraft.length &&
-        !filters.aircraft.includes(f.aircraft?.name || '')
+        !f.legs.some((leg) =>
+          filters.aircraft.includes(leg.aircraft?.name || ''),
+        )
       ) {
         return false;
       }
 
       if (
         filters.aircraftRegs.length &&
-        !filters.aircraftRegs.includes(f.aircraftReg || '')
+        !f.legs.some((leg) =>
+          filters.aircraftRegs.includes(leg.aircraftReg || ''),
+        )
       ) {
         return false;
       }

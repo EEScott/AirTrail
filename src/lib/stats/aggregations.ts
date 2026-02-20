@@ -5,7 +5,7 @@ import {
   wasVisited,
 } from '$lib/db/types';
 import { COUNTRIES } from '$lib/data/countries';
-import { type FlightData, toTitleCase } from '$lib/utils';
+import { type FlightData, type LegData, toTitleCase } from '$lib/utils';
 
 export type FlightChartKey =
   | 'seat-class'
@@ -147,11 +147,16 @@ function sortAndLimit(
   return Object.fromEntries(top);
 }
 
+function allLegs(flights: FlightData[]): LegData[] {
+  return flights.flatMap((f) => f.legs);
+}
+
 export function seatDistribution(
   flights: FlightData[],
   ctx: StatsContext,
   options?: AggregationOptions,
 ): Record<string, number> {
+  const legs = allLegs(flights);
   const categories = [
     'window',
     'aisle',
@@ -162,8 +167,8 @@ export function seatDistribution(
     'other',
   ];
   const counts = categories.reduce<Record<string, number>>((acc, category) => {
-    acc[toTitleCase(category)] = flights.filter((f) =>
-      f.seats.some(
+    acc[toTitleCase(category)] = legs.filter((l) =>
+      l.seats.some(
         (v) => (v.userId === ctx.userId || !ctx.userId) && v.seat === category,
       ),
     ).length;
@@ -171,7 +176,7 @@ export function seatDistribution(
   }, {});
 
   const totalClassified = Object.values(counts).reduce((a, b) => a + b, 0);
-  const noData = flights.length - totalClassified;
+  const noData = legs.length - totalClassified;
   if (noData > 0) {
     counts['No Data'] = noData;
   }
@@ -184,10 +189,11 @@ export function seatClassDistribution(
   ctx: StatsContext,
   options?: AggregationOptions,
 ): Record<string, number> {
+  const legs = allLegs(flights);
   const categories = ['economy', 'economy+', 'business', 'first', 'private'];
   const counts = categories.reduce<Record<string, number>>((acc, category) => {
-    acc[toTitleCase(category)] = flights.filter((f) =>
-      f.seats.some(
+    acc[toTitleCase(category)] = legs.filter((l) =>
+      l.seats.some(
         (v) =>
           (v.userId === ctx.userId || !ctx.userId) && v.seatClass === category,
       ),
@@ -196,7 +202,7 @@ export function seatClassDistribution(
   }, {});
 
   const totalClassified = Object.values(counts).reduce((a, b) => a + b, 0);
-  const noData = flights.length - totalClassified;
+  const noData = legs.length - totalClassified;
   if (noData > 0) {
     counts['No Data'] = noData;
   }
@@ -231,19 +237,20 @@ export function continentDistribution(
   _ctx: StatsContext,
   options?: AggregationOptions,
 ): Record<string, number> {
+  const legs = allLegs(flights);
   const continents = Object.entries(ContinentMap).map(([code, name]) => ({
     code,
     name,
   }));
   const counts = continents.reduce<Record<string, number>>((acc, continent) => {
-    acc[continent.name] = flights.filter(
-      (f) => f.to && f.to.continent === continent.code,
+    acc[continent.name] = legs.filter(
+      (l) => l.to && l.to.continent === continent.code,
     ).length;
     return acc;
   }, {});
 
   const totalClassified = Object.values(counts).reduce((a, b) => a + b, 0);
-  const noData = flights.length - totalClassified;
+  const noData = legs.length - totalClassified;
   if (noData > 0) {
     counts['No Data'] = noData;
   }
@@ -256,13 +263,14 @@ export function routeDistribution(
   _ctx: StatsContext,
   options?: AggregationOptions,
 ): Record<string, number> {
-  const counts = flights.reduce<Record<string, number>>((acc, flight) => {
-    if (!flight.from || !flight.to) return acc;
+  const legs = allLegs(flights);
+  const counts = legs.reduce<Record<string, number>>((acc, leg) => {
+    if (!leg.from || !leg.to) return acc;
 
     const label =
-      (flight.from.iata || flight.from.icao) +
+      (leg.from.iata || leg.from.icao) +
       '-' +
-      (flight.to.iata || flight.to.icao);
+      (leg.to.iata || leg.to.icao);
     acc[label] = (acc[label] || 0) + 1;
     return acc;
   }, {});
@@ -274,8 +282,9 @@ export function airlineDistribution(
   _ctx: StatsContext,
   options?: AggregationOptions,
 ): Record<string, number> {
-  const counts = flights.reduce<Record<string, number>>((acc, flight) => {
-    const label = flight.airline?.name ?? 'No Data';
+  const legs = allLegs(flights);
+  const counts = legs.reduce<Record<string, number>>((acc, leg) => {
+    const label = leg.airline?.name ?? 'No Data';
     acc[label] = (acc[label] || 0) + 1;
     return acc;
   }, {});
@@ -287,8 +296,9 @@ export function aircraftModelDistribution(
   _ctx: StatsContext,
   options?: AggregationOptions,
 ): Record<string, number> {
-  const counts = flights.reduce<Record<string, number>>((acc, flight) => {
-    const label = flight.aircraft?.name ?? 'No Data';
+  const legs = allLegs(flights);
+  const counts = legs.reduce<Record<string, number>>((acc, leg) => {
+    const label = leg.aircraft?.name ?? 'No Data';
     acc[label] = (acc[label] || 0) + 1;
     return acc;
   }, {});
@@ -300,8 +310,9 @@ export function aircraftRegDistribution(
   _ctx: StatsContext,
   options?: AggregationOptions,
 ): Record<string, number> {
-  const counts = flights.reduce<Record<string, number>>((acc, flight) => {
-    const label = flight.aircraftReg ?? 'No Data';
+  const legs = allLegs(flights);
+  const counts = legs.reduce<Record<string, number>>((acc, leg) => {
+    const label = leg.aircraftReg ?? 'No Data';
     acc[label] = (acc[label] || 0) + 1;
     return acc;
   }, {});
@@ -313,8 +324,9 @@ export function airportDistribution(
   _ctx: StatsContext,
   options?: AggregationOptions,
 ): Record<string, number> {
+  const legs = allLegs(flights);
   const counts: Record<string, number> = {};
-  for (const { from, to } of flights) {
+  for (const { from, to } of legs) {
     for (const code of [from?.iata || from?.icao, to?.iata || to?.icao]) {
       if (!code) continue;
 
