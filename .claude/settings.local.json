@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker info:*)",
+      "Bash(start:*)",
+      "Bash(start \"\" \"$LOCALAPPDATA/Docker/Docker Desktop.exe\")",
+      "Bash(docker ps:*)",
+      "Bash(npx svelte-check:*)",
+      "Bash(bun run svelte-check:*)",
+      "Bash(where:*)",
+      "Bash(where.exe:*)",
+      "Bash(docker build:*)"
+    ]
+  }
+}
